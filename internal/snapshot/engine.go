@@ -136,7 +136,6 @@ func (e *Engine) GetTimeline(appID string) []ipcapi.SnapshotMeta {
 }
 
 func (e *Engine) Ingest(app *state.AppState) (*ipcapi.SnapshotMeta, error) {
-	fmt.Printf("[DEBUG] Ingest called for app %s (PID: %d)\n", app.AppID, app.PID)
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -148,7 +147,6 @@ func (e *Engine) Ingest(app *state.AppState) (*ipcapi.SnapshotMeta, error) {
 			name:  filepath.Base(app.ExecutablePath),
 		}
 		e.apps[app.AppID] = tl
-		fmt.Printf("[DEBUG] New app timeline created for %s\n", app.AppID)
 	}
 	tl.lastActivity = app.Timestamp
 	if app.ExecutablePath != "" {
@@ -160,9 +158,9 @@ func (e *Engine) Ingest(app *state.AppState) (*ipcapi.SnapshotMeta, error) {
 
 	var base *FullSnapshot
 	if len(tl.snapshots) == 0 {
-		fmt.Printf("[DEBUG] First snapshot for app %s - creating\n", app.AppID)
 		base = &FullSnapshot{App: *app}
 	} else {
+		// Оптимизируем получение базового снимка, только если действительно необходимо
 		_, full, err := e.resolveSnapshotLocked(tl, tl.snapshots[len(tl.snapshots)-1].SnapshotID)
 		if err == nil {
 			base = full
@@ -172,12 +170,21 @@ func (e *Engine) Ingest(app *state.AppState) (*ipcapi.SnapshotMeta, error) {
 	}
 
 	delta := diffStates(&base.App, app)
-	fmt.Printf("[DEBUG] Delta: windows=%v, clipboard=%v, files+=%d, files-=%d, plugin=%v\n",
-		delta.WindowsChanged, delta.ClipboardChanged, len(delta.FilesAdded), len(delta.FilesRemoved), delta.PluginChanged)
 
+	// Пропускаем создание снапшота, если нет значительных изменений
 	if len(tl.snapshots) > 0 && !delta.WindowsChanged && !delta.ClipboardChanged && len(delta.FilesAdded) == 0 && len(delta.FilesRemoved) == 0 && !delta.PluginChanged {
-		fmt.Printf("[DEBUG] No changes detected, skipping snapshot\n")
 		return nil, nil
+	}
+
+	// Добавляем проверку, чтобы избежать создания слишком частых снапшотов
+	if len(tl.snapshots) > 0 {
+		lastSnapshot := tl.snapshots[len(tl.snapshots)-1]
+		if app.Timestamp.Sub(lastSnapshot.Timestamp) < 2*time.Second {
+			// Если прошло менее 2 секунд с последнего снапшота и изменения минимальны, пропускаем
+			if !delta.WindowsChanged && len(delta.FilesAdded) <= 1 && len(delta.FilesRemoved) <= 1 {
+				return nil, nil
+			}
+		}
 	}
 
 	sid := uuid.NewString()
@@ -195,7 +202,8 @@ func (e *Engine) Ingest(app *state.AppState) (*ipcapi.SnapshotMeta, error) {
 		Timestamp:      app.Timestamp,
 	}
 
-	if len(tl.snapshots)%30 == 0 {
+	// Реже выполняем операции выгрузки на диск для экономии ресурсов
+	if len(tl.snapshots)%50 == 0 { // Увеличиваем интервал с 30 до 50
 		ref, err := e.spillFullSnapshotLocked(app.AppID, &FullSnapshot{App: *app})
 		if err == nil {
 			snap.Spilled = true
@@ -205,7 +213,6 @@ func (e *Engine) Ingest(app *state.AppState) (*ipcapi.SnapshotMeta, error) {
 	}
 
 	tl.snapshots = append(tl.snapshots, snap)
-	fmt.Printf("[DEBUG] Snapshot created: %s for app %s (total snapshots: %d)\n", sid, app.AppID, len(tl.snapshots))
 
 	if len(tl.snapshots) > e.cfg.MaxSnapshotsPerApp {
 		tl.snapshots = tl.snapshots[len(tl.snapshots)-e.cfg.MaxSnapshotsPerApp:]

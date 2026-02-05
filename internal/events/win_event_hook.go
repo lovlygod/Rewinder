@@ -49,7 +49,8 @@ func (w *winEventHook) Run(stopCh <-chan struct{}) {
 				translateMessage(&msg)
 				dispatchMessage(&msg)
 			} else {
-				time.Sleep(10 * time.Millisecond)
+				// Увеличиваем задержку для снижения нагрузки на CPU
+				time.Sleep(50 * time.Millisecond)
 			}
 		}
 	}

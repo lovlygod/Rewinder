@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"sync"
+	"time"
 
 	"Rewinder/internal/events"
 	"Rewinder/internal/ipcapi"
@@ -232,6 +233,9 @@ func (s *Services) shouldTrack(appID string, exePath string, windowClass string)
 	return s.cfg.Rules.Allow(exePath, windowClass)
 }
 
+// Добавляем переменную для отслеживания времени последнего захвата
+var lastCaptureTime time.Time
+
 func (s *Services) handleSystemEvent(ev events.SystemEvent) {
 	switch ev.Type {
 	case events.EventForegroundChanged, events.EventWindowMoved, events.EventWindowShown, events.EventWindowHidden, events.EventProcessStarted, events.EventProcessExited:
@@ -243,6 +247,13 @@ func (s *Services) handleSystemEvent(ev events.SystemEvent) {
 }
 
 func (s *Services) captureForeground() {
+	// Ограничиваем частоту захватов, чтобы избежать избыточной нагрузки
+	now := time.Now()
+	if now.Sub(lastCaptureTime) < 500*time.Millisecond { // Минимальный интервал между захватами
+		return
+	}
+	lastCaptureTime = now
+
 	app, err := s.cap.CaptureForeground()
 	if err != nil {
 		return

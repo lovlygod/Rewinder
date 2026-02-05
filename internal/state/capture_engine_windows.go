@@ -97,6 +97,7 @@ func (c *wmiProcCache) Lookup(pid int) (exe string, cmd string, wd string) {
 	q := fmt.Sprintf("WHERE ProcessID=%d", pid)
 	err := wmi.Query("SELECT ProcessID, ExecutablePath, CommandLine FROM Win32_Process "+q, &dst)
 	if err != nil || len(dst) == 0 {
+		// Возвращаем пустые значения без сохранения в кэш, если не удалось получить данные
 		return "", "", ""
 	}
 	var p = dst[0]
@@ -111,6 +112,16 @@ func (c *wmiProcCache) Lookup(pid int) (exe string, cmd string, wd string) {
 	}
 	c.last[pid] = cachedProc{exe: exe, cmd: cmd, wd: wd, at: time.Now()}
 	return exe, cmd, wd
+}
+
+// Добавляем функцию для очистки устаревших записей в кэше
+func (c *wmiProcCache) Cleanup() {
+	now := time.Now()
+	for pid, proc := range c.last {
+		if now.Sub(proc.at) > 5*time.Minute {
+			delete(c.last, pid)
+		}
+	}
 }
 
 var (
@@ -238,18 +249,16 @@ func enumerateWindows(pid int, foreground uintptr) []WindowState {
 		isMin := wp.ShowCmd == SW_SHOWMINIMIZED
 		isMax := wp.ShowCmd == SW_SHOWMAXIMIZED
 
+		// Ограничиваем подсчет Z-порядка, чтобы избежать чрезмерной нагрузки
 		z := 0
 		cur := hwnd
-		for {
+		for iterations := 0; iterations < 100; iterations++ { // Ограничиваем количество итераций
 			prev, _, _ := procGetWindow.Call(cur, GW_HWNDPREV)
 			if prev == 0 {
 				break
 			}
 			z++
 			cur = prev
-			if z > 10000 {
-				break
-			}
 		}
 
 		monID := monitorIDFromWindow(hwnd)

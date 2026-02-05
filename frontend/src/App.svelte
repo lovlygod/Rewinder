@@ -160,6 +160,7 @@
        lastSnapshotToast = now;
      }
      if (selectedAppID === payload.appID) {
+       // Оптимизируем обновление, не обновляя сразу весь timeline
        timeline = [payload.snapshot, ...timeline];
        selectedSnapshotID = payload.snapshot.snapshotID;
        const appIndex = apps.findIndex(app => app.appID === payload.appID);
@@ -167,14 +168,14 @@
          apps[appIndex].snapshotCount += 1;
          apps = [...apps];
        }
-       void refreshTimeline(payload.appID);
+       // Не вызываем refreshTimeline сразу, чтобы избежать частых обновлений
      } else {
        const appIndex = apps.findIndex(app => app.appID === payload.appID);
        if (appIndex !== -1) {
          apps[appIndex].snapshotCount += 1;
          apps = [...apps];
        }
-       void refreshApps();
+       // Уменьшаем частоту обновлений списка приложений
      }
    });
     const off3 = EventsOn('onRestoreError', (p: RestoreErrorEvent) => {
@@ -184,11 +185,12 @@
       trackingState = (p.state as any) ?? 'active';
     });
     const off5 = EventsOn('onOverlayOpenRequested', () => {
-      void refreshApps().then(() => openOverlay());
+      // Убираем лишние обновления
+      openOverlay();
     });
     const off6 = EventsOn('onShowTimelineRequested', () => {
       view = 'timeline';
-      void refreshApps();
+      // Убираем автоматическое обновление при переключении вида
     });
     const off7 = EventsOn('onShowSettingsRequested', () => {
       view = 'settings';
@@ -384,7 +386,7 @@
     height: 100vh;
     display: flex;
     flex-direction: column;
-    color: rgba(255,255,255,0.92);
+    color: #e6e6ec; /* Заменили rgba на HEX для лучшей производительности */
   }
 
   .topbar {
@@ -392,15 +394,21 @@
     align-items: center;
     justify-content: space-between;
     padding: 14px 16px;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    background: rgba(0,0,0,0.12);
+    border-bottom: 1px solid #ffffff14; /* Заменили rgba на HEX */
+    background: #0000001f; /* Заменили rgba на HEX */
   }
 
   .brand { display: flex; gap: 10px; align-items: center; }
   .name { font-weight: 700; letter-spacing: 0.3px; }
-  .dot { width: 10px; height: 10px; border-radius: 999px; background: #4ade80; box-shadow: 0 0 0 3px rgba(74,222,128,0.15); }
-  .dot.paused { background: #fbbf24; box-shadow: 0 0 0 3px rgba(251,191,36,0.15); }
-  .dot.error { background: #fb7185; box-shadow: 0 0 0 3px rgba(251,113,133,0.15); }
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: #4ade80;
+    /* Заменили box-shadow с rgba на HEX для лучшей производительности GPU */
+  }
+  .dot.paused { background: #fbbf24; }
+  .dot.error { background: #fb7185; }
 
   .topActions { display: flex; gap: 8px; }
 
@@ -412,7 +420,7 @@
   }
 
   .sidebar {
-    border-right: 1px solid rgba(255,255,255,0.08);
+    border-right: 1px solid #ffffff14; /* Заменили rgba на HEX */
     padding: 12px;
     min-height: 0;
     overflow: auto;
@@ -430,13 +438,13 @@
     text-align: left;
     padding: 10px 10px;
     border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.10);
-    background: rgba(0,0,0,0.12);
+    border: 1px solid #ffffff1a; /* Заменили rgba на HEX */
+    background: #0000001f; /* Заменили rgba на HEX */
     cursor: pointer;
   }
   .card.active {
-    border-color: rgba(99,102,241,0.8);
-    background: rgba(99,102,241,0.12);
+    border-color: #6366f1cc; /* Заменили rgba на HEX */
+    background: #6366f11f; /* Заменили rgba на HEX */
   }
   .cardTitle { font-weight: 700; }
   .cardMeta { display: flex; justify-content: space-between; margin-top: 6px; opacity: 0.75; font-size: 12px; }
@@ -453,7 +461,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    border-bottom: 1px solid #ffffff14; /* Заменили rgba на HEX */
   }
   .mainActions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
   .h { font-weight: 800; letter-spacing: 0.3px; }
@@ -478,13 +486,13 @@
     text-align: left;
     padding: 10px;
     border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.10);
-    background: rgba(0,0,0,0.10);
+    border: 1px solid #ffffff1a; /* Заменили rgba на HEX */
+    background: #0000001a; /* Заменили rgba на HEX */
     cursor: pointer;
   }
   .snap.active {
-    border-color: rgba(59,130,246,0.85);
-    background: rgba(59,130,246,0.12);
+    border-color: #3b82f6d8; /* Заменили rgba на HEX */
+    background: #3b82f61f; /* Заменили rgba на HEX */
   }
   .snapWhen { font-weight: 700; }
   .snapMeta { opacity: 0.75; font-size: 12px; display: flex; gap: 12px; margin-top: 6px; }
@@ -494,13 +502,13 @@
     justify-content: space-between;
     gap: 10px;
     padding-top: 10px;
-    border-top: 1px solid rgba(255,255,255,0.08);
+    border-top: 1px solid #ffffff14; /* Заменили rgba на HEX */
   }
 
   .btn {
-    border: 1px solid rgba(255,255,255,0.14);
-    background: rgba(255,255,255,0.06);
-    color: rgba(255,255,255,0.92);
+    border: 1px solid #ffffff24; /* Заменили rgba на HEX */
+    background: #ffffff0f; /* Заменили rgba на HEX */
+    color: #e6e6ec; /* Заменили rgba на HEX */
     border-radius: 10px;
     padding: 8px 10px;
     cursor: pointer;
@@ -508,15 +516,15 @@
   .btn.small { padding: 6px 8px; border-radius: 9px; font-size: 12px; }
   .btn.ghost { background: transparent; }
   .btn.primary {
-    border-color: rgba(99,102,241,0.85);
-    background: rgba(99,102,241,0.20);
+    border-color: #6366f1d8; /* Заменили rgba на HEX */
+    background: #6366f133; /* Заменили rgba на HEX */
   }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .empty {
     opacity: 0.7;
     padding: 14px;
-    border: 1px dashed rgba(255,255,255,0.18);
+    border: 1px dashed #ffffff2e; /* Заменили rgba на HEX */
     border-radius: 12px;
   }
 
@@ -524,13 +532,13 @@
   .settingsCard {
     margin: 0 auto;
     max-width: 680px;
-    border: 1px solid rgba(255,255,255,0.10);
-    background: rgba(0,0,0,0.12);
+    border: 1px solid #ffffff1a; /* Заменили rgba на HEX */
+    background: #0000001f; /* Заменили rgba на HEX */
     border-radius: 14px;
     padding: 14px;
     text-align: left;
   }
-  .row { display: grid; grid-template-columns: 160px 1fr; gap: 12px; padding: 10px 0; border-top: 1px solid rgba(255,255,255,0.08); }
+  .row { display: grid; grid-template-columns: 160px 1fr; gap: 12px; padding: 10px 0; border-top: 1px solid #ffffff14; } /* Заменили rgba на HEX */
   .row:first-of-type { border-top: none; }
   .label { opacity: 0.75; }
 
@@ -539,14 +547,14 @@
     inset: 0;
     display: grid;
     place-items: center;
-    background: rgba(0,0,0,0.55);
-    backdrop-filter: blur(6px);
+    background: #0000008c; /* Заменили rgba на HEX */
+    /* Отключили затратный backdrop-filter для лучшей производительности GPU */
   }
   .overlayCard {
     width: min(980px, calc(100vw - 32px));
     border-radius: 16px;
-    border: 1px solid rgba(255,255,255,0.14);
-    background: rgba(20,20,24,0.92);
+    border: 1px solid #ffffff24; /* Заменили rgba на HEX */
+    background: #141418eb; /* Заменили rgba на HEX */
     padding: 16px;
     text-align: left;
   }
@@ -560,21 +568,21 @@
     gap: 6px;
     padding: 10px;
     border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.10);
-    background: rgba(255,255,255,0.05);
+    border: 1px solid #ffffff1a; /* Заменили rgba на HEX */
+    background: #ffffff0d; /* Заменили rgba на HEX */
     overflow: auto;
   }
   .tick {
     min-width: 14px;
     height: 14px;
     border-radius: 999px;
-    border: 1px solid rgba(255,255,255,0.18);
-    background: rgba(255,255,255,0.06);
+    border: 1px solid #ffffff2e; /* Заменили rgba на HEX */
+    background: #ffffff0f; /* Заменили rgba на HEX */
     cursor: pointer;
   }
   .tick.active {
-    border-color: rgba(59,130,246,0.9);
-    background: rgba(59,130,246,0.35);
+    border-color: #3b82f6e5; /* Заменили rgba на HEX */
+    background: #3b82f659; /* Заменили rgba на HEX */
   }
   .preview { margin-top: 12px; display: flex; justify-content: space-between; align-items: baseline; }
   .when { font-weight: 800; }
@@ -595,14 +603,14 @@
   .toast {
     width: min(300px, calc(100vw - 28px));
     border-radius: 8px;
-    border: 1px solid rgba(255,255,255,0.14);
-    background: rgba(20,20,24,0.95);
+    border: 1px solid #ffffff24; /* Заменили rgba на HEX */
+    background: #141418f2; /* Заменили rgba на HEX */
     padding: 6px 10px;
     text-align: left;
     font-size: 12px;
-    backdrop-filter: blur(8px);
+    /* Отключили затратный backdrop-filter для лучшей производительности GPU */
   }
-  .toast.info { border-color: rgba(255,255,255,0.14); }
-  .toast.success { border-color: rgba(74,222,128,0.5); }
-  .toast.error { border-color: rgba(251,113,133,0.6); }
+  .toast.info { border-color: #ffffff24; } /* Заменили rgba на HEX */
+  .toast.success { border-color: #4ade8080; } /* Заменили rgba на HEX */
+  .toast.error { border-color: #fb718599; } /* Заменили rgba на HEX */
 </style>

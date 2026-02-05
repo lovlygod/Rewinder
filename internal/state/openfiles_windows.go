@@ -15,6 +15,7 @@ func enumerateOpenFilesBestEffort(pid int) []FileRef {
 	start := time.Now()
 	out := map[string]struct{}{}
 
+	// Увеличиваем таймаут для оптимизации производительности
 	handles, err := querySystemHandles()
 	if err != nil {
 		return nil
@@ -26,11 +27,15 @@ func enumerateOpenFilesBestEffort(pid int) []FileRef {
 	}
 	defer windows.CloseHandle(hProc)
 
+	// Ограничиваем количество обрабатываемых дескрипторов для снижения нагрузки
+	processedCount := 0
 	for _, h := range handles {
 		if int(h.UniqueProcessID) != pid {
 			continue
 		}
-		if time.Since(start) > 150*time.Millisecond {
+
+		// Увеличиваем таймаут и ограничиваем количество обрабатываемых дескрипторов
+		if time.Since(start) > 300*time.Millisecond || processedCount > 50 {
 			break
 		}
 
@@ -58,6 +63,7 @@ func enumerateOpenFilesBestEffort(pid int) []FileRef {
 			continue
 		}
 		out[filepath.Clean(dos)] = struct{}{}
+		processedCount++
 	}
 
 	var res []FileRef
